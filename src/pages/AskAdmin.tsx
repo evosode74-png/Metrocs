@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { HelpCircle, Send, Clock, CheckCircle2 } from 'lucide-react';
@@ -16,7 +16,8 @@ export default function AskAdmin() {
     const q = query(
       collection(db, 'asks'),
       where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(50)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setAsks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));

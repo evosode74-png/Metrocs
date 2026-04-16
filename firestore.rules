@@ -2,174 +2,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
-    // Assumed Data Model
+    // CUSTOM PURE CLIENT AUTHENTICATION MODEL
     // ===============================================================
-    // Collection: users
-    // Document ID: {userId}
-    // Fields:
-    //   - uid: string (required)
-    //   - email: string (required)
-    //   - displayName: string (optional)
-    //   - photoURL: string (optional)
-    //   - role: string ('user' or 'admin') (required)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: character_stories
-    // Document ID: {storyId}
-    // Fields:
-    //   - authorUid: string (required)
-    //   - authorName: string (required)
-    //   - characterName: string (required)
-    //   - icLevel: number (required)
-    //   - icAge: number (required)
-    //   - statsImageUrl: string (required)
-    //   - tabImageUrl: string (required)
-    //   - originalText: string (required)
-    //   - correctedText: string (required)
-    //   - status: string ('pending', 'approved', 'rejected') (required)
-    //   - adminFeedback: string (optional)
-    //   - createdAt: timestamp (required)
-    //   - updatedAt: timestamp (required)
-    // Collection: global_chat
-    // Document ID: {messageId}
-    // Fields:
-    //   - uid: string (required)
-    //   - displayName: string (required)
-    //   - photoURL: string (optional)
-    //   - text: string (required)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: asks
-    // Document ID: {askId}
-    // Fields:
-    //   - userId: string (required)
-    //   - userName: string (required)
-    //   - question: string (required)
-    //   - answer: string (optional)
-    //   - status: string ('pending', 'answered') (required)
-    //   - createdAt: timestamp (required)
-    //   - updatedAt: timestamp (required)
-    // ===============================================================
-
-    // Helper Functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
+    // Aplikasi ini menggunakan sistem login khusus menggunakan "Nama" dan "Device IP".
+    // Tidak menggunakan Firebase Auth. request.auth selalu diset ke null.
+    // Aturan di bawah ini menyesuaikan kebutuhan akses data berdasarkan "uid" lokal di dokumen.
     
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
+    // PERINGATAN KEAMANAN: Memperbolehkan akses publik (read/write: true) memiliki risiko 
+    // pada setup Firestore standar. Aplikasi ini mengandalkan filter query klien dan ID unik 
+    // sebagai 'password' untuk membaca/menulis ke document.
     
-    function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "evosode74@gmail.com" && request.auth.token.email_verified == true));
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    // User Validators
-    function isValidUser() {
-      let allowedFields = ['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt'];
-      let data = request.resource.data;
-      return hasOnlyAllowedFields(allowedFields) &&
-             data.uid is string && data.uid == request.auth.uid &&
-             data.email is string && isValidEmail(data.email) &&
-             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
-             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500)) &&
-             data.role in ['user', 'admin'] &&
-             data.createdAt is timestamp;
-    }
-
-    // Character Story Validators
-    function isValidCharacterStory() {
-      let allowedFields = ['authorUid', 'authorName', 'characterName', 'icLevel', 'icAge', 'statsImageUrl', 'tabImageUrl', 'originalText', 'correctedText', 'status', 'adminFeedback', 'createdAt', 'updatedAt'];
-      let data = request.resource.data;
-      return hasOnlyAllowedFields(allowedFields) &&
-             data.authorUid is string && data.authorUid.size() > 0 &&
-             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() < 100 &&
-             data.characterName is string && data.characterName.size() > 0 && data.characterName.size() < 100 &&
-             data.icLevel is number && data.icLevel >= 2 &&
-             data.icAge is number && data.icAge >= 17 &&
-             data.statsImageUrl is string && data.statsImageUrl.size() > 0 && data.statsImageUrl.size() < 1000000 &&
-             data.tabImageUrl is string && data.tabImageUrl.size() > 0 && data.tabImageUrl.size() < 1000000 &&
-             data.originalText is string && data.originalText.size() > 0 && data.originalText.size() < 50000 &&
-             data.correctedText is string && data.correctedText.size() > 0 && data.correctedText.size() < 50000 &&
-             data.status in ['pending', 'approved', 'rejected'] &&
-             (!('adminFeedback' in data) || (data.adminFeedback is string && data.adminFeedback.size() < 5000)) &&
-             data.createdAt is timestamp &&
-             data.updatedAt is timestamp;
-    }
-
-    // Global Chat Validators
-    function isValidChatMessage() {
-      let allowedFields = ['uid', 'displayName', 'photoURL', 'text', 'createdAt'];
-      let data = request.resource.data;
-      return hasOnlyAllowedFields(allowedFields) &&
-             data.uid is string && data.uid == request.auth.uid &&
-             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
-             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500)) &&
-             data.text is string && data.text.size() > 0 && data.text.size() < 2000 &&
-             data.createdAt is timestamp;
-    }
-
-    // Ask Validators
-    function isValidAsk() {
-      let allowedFields = ['userId', 'userName', 'question', 'answer', 'status', 'createdAt', 'updatedAt'];
-      let data = request.resource.data;
-      return hasOnlyAllowedFields(allowedFields) &&
-             data.userId is string && data.userId.size() > 0 &&
-             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
-             data.question is string && data.question.size() > 0 && data.question.size() < 5000 &&
-             (!('answer' in data) || (data.answer is string && data.answer.size() < 5000)) &&
-             data.status in ['pending', 'answered'] &&
-             data.createdAt is timestamp &&
-             data.updatedAt is timestamp;
-    }
-
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated() && isOwner(userId) && isValidUser() && 
-                    (request.resource.data.role == 'user' || isAdmin());
-      allow update: if isAuthenticated() && isValidUser() && 
-                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
-    }
-
-    match /character_stories/{storyId} {
-      allow read: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
-      
-      allow create: if isAuthenticated() && isValidCharacterStory() && 
-                    request.resource.data.authorUid == request.auth.uid &&
-                    request.resource.data.status == 'pending';
-                    
-      allow update: if isAuthenticated() && isValidCharacterStory() && 
-                    (
-                      // Admins can update status and feedback
-                      (isAdmin() && request.resource.data.authorUid == resource.data.authorUid && request.resource.data.createdAt == resource.data.createdAt) ||
-                      // Users can only update if pending and they own it, and they can't change status
-                      (isOwner(resource.data.authorUid) && resource.data.status == 'pending' && request.resource.data.status == 'pending' && request.resource.data.authorUid == resource.data.authorUid && request.resource.data.createdAt == resource.data.createdAt)
-                    );
-                    
-      allow delete: if isAdmin();
-    }
-
-    match /global_chat/{messageId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidChatMessage();
-      allow delete: if isAdmin();
-    }
-
-    match /asks/{askId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && isValidAsk() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending';
-      allow update: if isAuthenticated() && isValidAsk() && isAdmin() && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isAdmin();
+    match /{document=**} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }

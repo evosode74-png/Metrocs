@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Link } from 'react-router-dom';
 import { FileText, Plus, Clock, CheckCircle, XCircle } from 'lucide-react';
@@ -17,7 +17,8 @@ export default function Dashboard() {
     const q = query(
       collection(db, 'character_stories'),
       where('authorUid', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(10)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, limit, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Send, User, MessageSquare } from 'lucide-react';
+import { Send, User, MessageSquare, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function GlobalChat() {
@@ -12,7 +12,7 @@ export default function GlobalChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'global_chat'), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, 'global_chat'), orderBy('createdAt', 'desc'), limit(30));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
       setMessages(msgs);
@@ -23,18 +23,37 @@ export default function GlobalChat() {
     return unsubscribe;
   }, []);
 
+  const handleDelete = async (msgId: string) => {
+    try {
+      if (window.confirm("Hapus pesan ini?")) {
+        await deleteDoc(doc(db, 'global_chat', msgId));
+      }
+    } catch (e) {
+      console.error("Delete error", e);
+    }
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !user || !profile) return;
 
-    const text = input.trim();
+    let text = input.trim();
     setInput('');
 
     try {
+      // Basic Emoji Support (Common patterns)
+      text = text
+        .replace(/:smile:/g, '😊')
+        .replace(/:love:/g, '❤️')
+        .replace(/:fire:/g, '🔥')
+        .replace(/:haha:/g, '🤣')
+        .replace(/:sad:/g, '😢');
+
       await addDoc(collection(db, 'global_chat'), {
         uid: user.uid,
+        sampId: profile.sampId || 'SYS00',
         displayName: profile.displayName || user.email,
-        photoURL: profile.photoURL || '',
+        role: profile.role || 'user',
         text,
         createdAt: serverTimestamp()
       });
@@ -70,11 +89,19 @@ export default function GlobalChat() {
                 )}
               </div>
               <div className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-baseline gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[10px] font-bold px-1 rounded ${msg.role === 'admin' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/30' : 'bg-gray-800 text-gray-400'}`}>
+                    {msg.role === 'admin' ? 'ADMIN' : `ID: ${msg.sampId}`}
+                  </span>
                   <span className="text-xs font-medium text-gray-400">{msg.displayName}</span>
                   <span className="text-[10px] text-gray-600">
                     {msg.createdAt?.toDate ? format(msg.createdAt.toDate(), 'HH:mm') : ''}
                   </span>
+                  {(isMe || profile?.role === 'admin') && (
+                    <button onClick={() => handleDelete(msg.id)} className="text-gray-600 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
                 <div className={`rounded-2xl p-3 text-sm ${isMe ? 'bg-orange-500 text-white rounded-tr-none' : 'bg-[#0a0a0a] border border-gray-800 text-gray-200 rounded-tl-none'}`}>
                   <p className="whitespace-pre-wrap break-words">{msg.text}</p>

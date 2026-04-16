@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, serverTimestamp, limit, setDoc, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { StatusBadge } from './Dashboard';
 import { format } from 'date-fns';
-import { Check, X, MessageSquare, ChevronDown, ChevronUp, Users, FileText, ExternalLink } from 'lucide-react';
+import { Check, X, MessageSquare, ChevronDown, ChevronUp, Users, FileText, ExternalLink, ShieldAlert } from 'lucide-react';
+import { detectAIOrManual } from '../services/geminiService';
 
 export default function AdminDashboard() {
   const [stories, setStories] = useState<any[]>([]);
@@ -14,13 +15,13 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'stories' | 'users'>('stories');
 
   useEffect(() => {
-    const qStories = query(collection(db, 'character_stories'), orderBy('createdAt', 'desc'));
+    const qStories = query(collection(db, 'character_stories'), orderBy('createdAt', 'desc'), limit(30));
     const unsubscribeStories = onSnapshot(qStories, (snapshot) => {
       setStories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
 
-    const qUsers = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    const qUsers = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(30));
     const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
@@ -31,7 +32,7 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const handleUpdateStatus = async (storyId: string, newStatus: 'approved' | 'rejected') => {
+  const handleUpdateStatus = async (storyId: string, newStatus: 'approved' | 'rejected', storyData: any) => {
     try {
       const storyRef = doc(db, 'character_stories', storyId);
       await updateDoc(storyRef, {
@@ -39,6 +40,39 @@ export default function AdminDashboard() {
         adminFeedback: feedback[storyId] || '',
         updatedAt: serverTimestamp()
       });
+
+      // AI Learning: 
+      if (newStatus === 'approved') {
+        const learningRef = doc(db, 'ai_learning', storyId);
+        await setDoc(learningRef, {
+          characterName: storyData.characterName,
+          originalText: storyData.originalText,
+          correctedText: storyData.correctedText,
+          authorUid: storyData.authorUid,
+          approvedAt: serverTimestamp(),
+          type: 'positive', // Mark as positive example
+          category: 'character_story'
+        });
+
+        // Add to Metro Bot knowledge
+        await addDoc(collection(db, 'metro_knowledge'), {
+           question: `CONTOH CS BAGUS: ${storyData.characterName}`,
+           answer: `CS ini disetujui admin untuk ${storyData.characterName}. Teks: ${storyData.correctedText}`,
+           category: 'curated_stories',
+           learnedAt: serverTimestamp()
+        });
+      } else if (newStatus === 'rejected') {
+        // Save as negative example to teach AI what to avoid
+        const learningRef = doc(db, 'ai_learning', storyId);
+        await setDoc(learningRef, {
+          characterName: storyData.characterName,
+          originalText: storyData.originalText,
+          feedback: feedback[storyId] || '',
+          rejectedAt: serverTimestamp(),
+          type: 'negative', // Mark as negative example
+          category: 'character_story'
+        });
+      }
     } catch (error) {
       console.error("Error updating status:", error);
       alert("Failed to update status.");
@@ -123,13 +157,35 @@ export default function AdminDashboard() {
 
                   <div className="grid md:grid-cols-2 gap-6 mb-6">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wider">Original Text</h4>
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Original Text</h4>
+                        <button
+                          onClick={async () => {
+                            const res = await detectAIOrManual(story.originalText);
+                            alert(`Detection Result for ORG:\n${res.isAI ? '🚨 TERDETEKSI AI' : '✅ TERDETEKSI MANUAL'}\nConfidence: ${res.confidence}%\nReason: ${res.reason}`);
+                          }}
+                          className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded border border-orange-500/20 hover:bg-orange-500 hover:text-white transition-all flex items-center gap-1"
+                        >
+                          <ShieldAlert className="w-3 h-3" /> Detect AI
+                        </button>
+                      </div>
                       <div className="bg-[#141414] p-4 rounded-lg border border-gray-800 text-sm text-gray-400 whitespace-pre-wrap max-h-96 overflow-y-auto">
                         {story.originalText}
                       </div>
                     </div>
                     <div>
-                      <h4 className="text-sm font-medium text-orange-500 mb-2 uppercase tracking-wider">AI Corrected Text</h4>
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-sm font-medium text-orange-500 uppercase tracking-wider">AI Corrected Text</h4>
+                        <button
+                          onClick={async () => {
+                            const res = await detectAIOrManual(story.correctedText);
+                            alert(`Detection Result for AI FIX:\n${res.isAI ? '🚨 TERDETEKSI AI' : '✅ TERDETEKSI MANUAL'}\nConfidence: ${res.confidence}%\nReason: ${res.reason}`);
+                          }}
+                          className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded border border-orange-500/20 hover:bg-orange-500 hover:text-white transition-all flex items-center gap-1"
+                        >
+                          <ShieldAlert className="w-3 h-3" /> Detect AI
+                        </button>
+                      </div>
                       <div className="bg-[#141414] p-4 rounded-lg border border-orange-500/20 text-sm text-gray-200 whitespace-pre-wrap max-h-96 overflow-y-auto">
                         {story.correctedText}
                       </div>
@@ -150,13 +206,13 @@ export default function AdminDashboard() {
                     
                     <div className="flex gap-3 justify-end">
                       <button
-                        onClick={() => handleUpdateStatus(story.id, 'rejected')}
+                        onClick={() => handleUpdateStatus(story.id, 'rejected', story)}
                         className="px-4 py-2 rounded-lg font-medium flex items-center gap-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
                       >
                         <X className="w-4 h-4" /> Reject
                       </button>
                       <button
-                        onClick={() => handleUpdateStatus(story.id, 'approved')}
+                        onClick={() => handleUpdateStatus(story.id, 'approved', story)}
                         className="px-4 py-2 rounded-lg font-medium flex items-center gap-2 bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
                       >
                         <Check className="w-4 h-4" /> Approve

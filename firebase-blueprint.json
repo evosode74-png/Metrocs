@@ -34,7 +34,7 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["authorUid", "authorName", "characterName", "icLevel", "icAge", "statsImageUrl", "tabImageUrl", "originalText", "correctedText", "status", "createdAt", "updatedAt"]
-    }
+    },
     "GlobalChat": {
       "title": "Global Chat",
       "description": "Messages in the global chat room.",
@@ -44,9 +44,24 @@
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
         "text": { "type": "string" },
+        "sampId": { "type": "string" },
+        "role": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "displayName", "text", "createdAt"]
+    },
+    "LoginLog": {
+      "title": "Login Log",
+      "description": "Audit trail of logins.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "browserId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" }
+      },
+      "required": ["username", "timestamp", "status"]
     },
     "Ask": {
       "title": "Ask Admin",
@@ -62,6 +77,32 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "userName", "question", "status", "createdAt", "updatedAt"]
+    },
+    "MetroKnowledge": {
+      "title": "Metro Knowledge",
+      "description": "Learned knowledge for Metro Bot.",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "category": { "type": "string" },
+        "learnedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["question", "answer", "learnedAt"]
+    },
+    "AiLearning": {
+      "title": "AI Learning",
+      "description": "Positive/Negative examples for AI training.",
+      "type": "object",
+      "properties": {
+        "originalText": { "type": "string" },
+        "correctedText": { "type": "string" },
+        "feedback": { "type": "string" },
+        "type": { "type": "string", "enum": ["positive", "negative"] },
+        "category": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "category"]
     }
   },
   "firestore": {
@@ -80,6 +121,18 @@
     "/asks/{askId}": {
       "schema": { "$ref": "#/entities/Ask" },
       "description": "Stores user questions to admins."
+    },
+    "/login_logs/{logId}": {
+      "schema": { "$ref": "#/entities/LoginLog" },
+      "description": "Stores login audit logs."
+    },
+    "/metro_knowledge/{knowledgeId}": {
+      "schema": { "$ref": "#/entities/MetroKnowledge" },
+      "description": "Learned knowledge for Metro Bot."
+    },
+    "/ai_learning/{learningId}": {
+      "schema": { "$ref": "#/entities/AiLearning" },
+      "description": "Training examples for AI."
     }
   }
 }
