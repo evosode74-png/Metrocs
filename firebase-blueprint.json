@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the UCP.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "CharacterStory": {
+      "title": "Character Story",
+      "description": "A character story submitted by a user.",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "characterName": { "type": "string" },
+        "icLevel": { "type": "number" },
+        "icAge": { "type": "number" },
+        "statsImageUrl": { "type": "string" },
+        "tabImageUrl": { "type": "string" },
+        "originalText": { "type": "string" },
+        "correctedText": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "adminFeedback": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "authorName", "characterName", "icLevel", "icAge", "statsImageUrl", "tabImageUrl", "originalText", "correctedText", "status", "createdAt", "updatedAt"]
+    }
+    "GlobalChat": {
+      "title": "Global Chat",
+      "description": "Messages in the global chat room.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "text", "createdAt"]
+    },
+    "Ask": {
+      "title": "Ask Admin",
+      "description": "Questions asked by users to admins.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "answered"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "question", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and roles."
+    },
+    "/character_stories/{storyId}": {
+      "schema": { "$ref": "#/entities/CharacterStory" },
+      "description": "Stores submitted character stories."
+    },
+    "/global_chat/{messageId}": {
+      "schema": { "$ref": "#/entities/GlobalChat" },
+      "description": "Stores global chat messages."
+    },
+    "/asks/{askId}": {
+      "schema": { "$ref": "#/entities/Ask" },
+      "description": "Stores user questions to admins."
+    }
+  }
+}
