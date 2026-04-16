@@ -25,11 +25,14 @@ export default function GlobalChat() {
 
   const handleDelete = async (msgId: string) => {
     try {
-      if (window.confirm("Hapus pesan ini?")) {
-        await deleteDoc(doc(db, 'global_chat', msgId));
-      }
-    } catch (e) {
+      // Direct delete to avoid iframe confirm issues
+      const msgRef = doc(db, 'global_chat', msgId);
+      await deleteDoc(msgRef);
+      // Logic for numpuk: local state check is not needed since onSnapshot handles it,
+      // but we can add minor feedback
+    } catch (e: any) {
       console.error("Delete error", e);
+      alert("Gagal menghapus pesan: " + e.message);
     }
   };
 
@@ -91,7 +94,7 @@ export default function GlobalChat() {
               <div className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`text-[10px] font-bold px-1 rounded ${msg.role === 'admin' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/30' : 'bg-gray-800 text-gray-400'}`}>
-                    {msg.role === 'admin' ? 'ADMIN' : `ID: ${msg.sampId}`}
+                    {msg.role === 'admin' ? 'ADMIN' : 'PLAYER'}
                   </span>
                   <span className="text-xs font-medium text-gray-400">{msg.displayName}</span>
                   <span className="text-[10px] text-gray-600">

@@ -79,7 +79,16 @@ export default function Layout() {
                 <div className="flex items-center space-x-3">
                   <div className="flex flex-col items-end">
                     <span className="text-sm font-medium truncate max-w-[120px]">{profile.displayName}</span>
-                    <span className="text-[10px] text-gray-400 font-mono">LOCKED: {profile.browserId?.substring(0, 8)}</span>
+                    <div 
+                      className="cursor-pointer group flex items-center gap-1"
+                      onClick={() => {
+                        const el = document.getElementById('pc-private-id');
+                        if (el) el.innerText = el.innerText === '•••••' ? profile.sampId : '•••••';
+                      }}
+                    >
+                       <span id="pc-private-id" className="text-[9px] text-gray-500 font-mono group-hover:text-orange-500 transition-colors">•••••</span>
+                       <span className="text-[8px] text-gray-600 font-bold uppercase">ID</span>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     {profile.photoURL ? (
@@ -89,7 +98,6 @@ export default function Layout() {
                         {profile.displayName?.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <span className="text-sm font-medium truncate max-w-[120px]">{profile.displayName}</span>
                   </div>
                   <button 
                     onClick={handleLogout}
@@ -148,9 +156,15 @@ export default function Layout() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium truncate max-w-[150px]">{profile.displayName}</span>
-                  <div className="flex items-center gap-1.5 p-1 px-2 bg-gray-900 border border-gray-800 rounded-lg">
-                    <span className="text-[9px] text-orange-500 font-bold">PRIVATE RECOVERY ID:</span>
-                    <span className="text-[11px] text-white font-mono font-bold tracking-widest">{profile.sampId}</span>
+                  <div 
+                    className="flex items-center gap-1.5 p-1 px-2 bg-gray-900 border border-gray-800 rounded-lg cursor-pointer hover:bg-gray-800 transition-all"
+                    onClick={() => {
+                        const el = document.getElementById('private-id');
+                        if (el) el.innerText = el.innerText === '•••••' ? profile.sampId : '•••••';
+                    }}
+                  >
+                    <span className="text-[9px] text-orange-500 font-bold">RECOVERY ID:</span>
+                    <span id="private-id" className="text-[11px] text-white font-mono font-bold tracking-widest">•••••</span>
                   </div>
                 </div>
               </div>

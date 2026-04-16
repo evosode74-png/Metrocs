@@ -12,9 +12,37 @@ service cloud.firestore {
     // pada setup Firestore standar. Aplikasi ini mengandalkan filter query klien dan ID unik 
     // sebagai 'password' untuk membaca/menulis ke document.
     
-    match /{document=**} {
+    // GLOBAL CHAT RULES
+    match /global_chat/{messageId} {
+      allow read: if true;
+      allow create: if true; // In production, validate message structure
+      allow delete, update: if true; // Security note: unrestricted for pure client model
+    }
+
+    // USERS RULES
+    match /users/{userId} {
       allow read: if true;
       allow write: if true;
+    }
+
+    // CHARACTER STORIES
+    match /character_stories/{storyId} {
+      allow read, write: if true;
+    }
+
+    // ADIT LOGS & ASKS
+    match /login_logs/{logId} {
+      allow read, write: if true;
+    }
+    match /asks/{askId} {
+      allow read, write: if true;
+    }
+    match /system_settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /metro_knowledge/{knowledgeId} {
+      allow read, write: if true;
     }
   }
 }
