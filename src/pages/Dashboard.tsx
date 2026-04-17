@@ -16,13 +16,17 @@ export default function Dashboard() {
 
     const q = query(
       collection(db, 'character_stories'),
-      where('authorUid', '==', user.uid),
       orderBy('createdAt', 'desc'),
-      limit(10)
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Filter in memory to bypass composite index requirement
+      const docs = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((story: any) => story.authorUid === user.uid)
+        .slice(0, 10);
+      
       setStories(docs);
       setLoading(false);
     }, (error) => {

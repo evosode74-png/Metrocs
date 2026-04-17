@@ -2,9 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import { collection, query, orderBy, limit, getDocs, where, getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
 
-// Mendukung environment AI Studio (process.env) dan standard Vite hosting (import.meta.env)
-const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey });
+// Mendukung environment AI Studio (process.env)
+const apiKey = process.env.GEMINI_API_KEY;
+const ai = new GoogleGenAI({ apiKey: apiKey as string });
 
 // Cache for AI Learning examples to avoid fetching on every request
 let posExamples: any[] = [];
@@ -19,15 +19,21 @@ async function getLearningData() {
   }
 
   try {
-    // 1. Positive Examples
-    const qPos = query(collection(db, 'ai_learning'), where('type', '==', 'positive'), orderBy('approvedAt', 'desc'), limit(3));
+    // 1. Positive Examples (Filter in memory to avoid index requirements)
+    const qPos = query(collection(db, 'ai_learning'), orderBy('approvedAt', 'desc'), limit(10));
     const posSnap = await getDocs(qPos);
-    posExamples = posSnap.docs.map(doc => doc.data());
+    posExamples = posSnap.docs
+      .map(doc => doc.data())
+      .filter(data => data.type === 'positive')
+      .slice(0, 3);
 
-    // 2. Negative Examples (Avoid these)
-    const qNeg = query(collection(db, 'ai_learning'), where('type', '==', 'negative'), orderBy('rejectedAt', 'desc'), limit(2));
+    // 2. Negative Examples
+    const qNeg = query(collection(db, 'ai_learning'), orderBy('rejectedAt', 'desc'), limit(10));
     const negSnap = await getDocs(qNeg);
-    negExamples = negSnap.docs.map(doc => doc.data());
+    negExamples = negSnap.docs
+      .map(doc => doc.data())
+      .filter(data => data.type === 'negative')
+      .slice(0, 2);
 
     // 3. Metro Knowledge Base (Answered Asks)
     const qK = query(collection(db, 'metro_knowledge'), orderBy('learnedAt', 'desc'), limit(10));
@@ -45,6 +51,7 @@ async function getLearningData() {
 export interface CharacterDetails {
   name: string;
   age: string;
+  birthDate: string;
   origin: string;
   personality: string;
   background: string;
@@ -74,6 +81,7 @@ Tugas Anda adalah membuat Character Story (CS) untuk server roleplay SAMP (San A
 Detail Karakter:
 - Nama: ${details.name}
 - Umur: ${details.age}
+- Tanggal Lahir: ${details.birthDate}
 - Asal/Kebangsaan: ${details.origin}
 - Sifat/Kepribadian: ${details.personality}
 - Latar Belakang/Masa Lalu: ${details.background}
@@ -85,15 +93,20 @@ ATURAN WAJIB PENULISAN CS (SANGAT KETAT):
 1. SUDUT PANDANG: Wajib menggunakan sudut pandang orang ketiga (ia, dia, atau nama karakter). Dilarang keras menggunakan kata "aku" atau "saya".
 2. BAHASA: Gunakan bahasa Indonesia baku (KBBI) yang baik, benar, dan sopan. Perhatikan tanda baca dan huruf kapital.
 3. STRUKTUR: Wajib terdiri dari MINIMAL 4 paragraf. Setiap paragraf WAJIB terdiri dari MINIMAL 4 kalimat.
-4. FORMAT: Setiap awal paragraf WAJIB diawali dengan tepat 3 spasi.
-5. KONTEN: Cerita harus realistis, masuk akal, dan sesuai dengan lore dunia nyata serta roleplay GTA San Andreas. Ceritakan perjalanan hidupnya dari masa lalu hingga bagaimana ia bisa memiliki tujuannya saat ini.
+4. JUMLAH KATA: Wajib berada di antara 200 - 2000 kata.
+5. AWAL CERITA: Paragraf pertama WAJIB mencantumkan tanggal lahir dan tempat lahir di dunia nyata. 
+   Contoh format: "${details.name} lahir pada ${details.birthDate} di ${details.origin}."
+6. NAMA KOTA: Dilarang menggunakan nama kota fiksi GTA (Los Santos, San Fierro, Las Venturas). WAJIB menggunakan nama kota dunia nyata (contoh: Los Angeles, San Francisco, Las Vegas, New York, dll).
+7. FORMAT: Setiap awal paragraf WAJIB diawali dengan tepat 3 spasi.
+8. TANGGAL: Gunakan format "19 Januari 1999" (Bukan 19/01/1999).
+9. KONTEN: Cerita harus realistis, masuk akal, dan sesuai dengan lore dunia nyata serta roleplay. Ceritakan perjalanan hidupnya dari masa lalu hingga bagaimana ia bisa memiliki tujuannya saat ini.
 
 Hanya berikan teks ceritanya saja, tanpa embel-embel kalimat pembuka atau penutup dari AI.
 `;
 
   try {
     const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
     return result.text || '';
@@ -103,7 +116,7 @@ Hanya berikan teks ceritanya saja, tanpa embel-embel kalimat pembuka atau penutu
   }
 }
 
-export async function correctCharacterStory(originalText: string, characterName: string): Promise<string> {
+export async function correctCharacterStory(originalText: string, characterName: string, birthDate: string = "", origin: string = ""): Promise<string> {
   const settingsSnap = await getDoc(doc(db, 'system_settings', 'ai_status'));
   const aiStatus = settingsSnap.exists() ? settingsSnap.data() : { corrector: true };
   
@@ -131,13 +144,17 @@ ${avoidPrompt}
 ATURAN KETAT (WAJIB DIIKUTI):
 1. Sudut Pandang: Wajib menggunakan sudut pandang orang ketiga. Ganti kata "aku", "saya", "kami" menjadi nama karakter ("${characterName}"), "ia", atau "dia".
 2. Bahasa: Gunakan bahasa Indonesia yang baku, sopan, dan sesuai KBBI. Perbaiki semua typo.
-3. Tanda Baca & Kapitalisasi: Perbaiki titik, koma, dan huruf kapital. Nama orang dan nama tempat WAJIB diawali huruf kapital.
-4. Format Tanggal: Ubah format tanggal menjadi seperti "19 Januari 1999" (jangan gunakan format angka seperti 19/01/1999).
+3. Tanda Baca & Kapitalisasi: Perbaiki titik, koma, and huruf kapital. Nama orang dan nama tempat WAJIB diawali huruf kapital.
+4. Format Tanggal & Lahir: Setiap awal cerita WAJIB mencantumkan tanggal lahir dan tempat lahir di dunia nyata. 
+   Gunakan data ini jika tersedia: Tanggal Lahir: ${birthDate || "(Cari dari teks)"}, Tempat Lahir: ${origin || "(Cari dari teks)"}.
+   Ubah format tanggal menjadi seperti "19 Januari 1999" (jangan gunakan format angka seperti 19/01/1999).
+   Contoh: "${characterName} lahir pada ${birthDate || '7 April 2006'} di ${origin || 'Chicago, USA'}."
 5. Paragraf: Cerita HARUS terdiri dari minimal 4 paragraf. Setiap paragraf HARUS memiliki minimal 4 kalimat. Jika cerita asli kurang dari ini, kembangkan ceritanya secara logis tanpa mengubah fakta utama.
-6. Awal Paragraf: Setiap awal paragraf HARUS diawali dengan tepat 3 spasi.
-7. Nama Kota: Ganti nama kota fiksi GTA (seperti Los Santos, San Fierro, Las Venturas) menjadi nama kota di dunia nyata (misal: Los Angeles, San Francisco, Las Vegas, Chicago, dll).
-8. Alur: Pastikan cerita adalah latar belakang (awal mula/backstory), BUKAN akhir cerita atau menceritakan karakter yang sudah sukses di kota.
-9. Konten Haram: Hapus semua unsur gore, pelecehan seksual, pedofilia, atau hal ekstrem lainnya.
+6. Kata: Panjang cerita harus antara 200 - 2000 kata.
+7. Awal Paragraf: Setiap awal paragraf HARUS diawali dengan tepat 3 spasi.
+8. Nama Kota: Ganti nama kota fiksi GTA (seperti Los Santos, San Fierro, Las Venturas) menjadi nama kota di dunia nyata (misal: Los Angeles, San Francisco, Las Vegas, Chicago, dll).
+9. Alur: Pastikan cerita adalah latar belakang (awal mula/backstory), BUKAN akhir cerita atau menceritakan karakter yang sudah sukses di kota.
+10. Konten Haram: Hapus semua unsur gore, pelecehan seksual, pedofilia, atau hal ekstrem lainnya.
 
 Cerita Asli:
 ${originalText}
@@ -174,7 +191,17 @@ export async function chatWithMetroBot(message: string, history: { role: string,
     const chat = ai.chats.create({
       model: "gemini-3-flash-preview",
       config: {
-        systemInstruction: `Kamu adalah Metro Bot, asisten virtual untuk server SAMP Roleplay. Jawab pertanyaan pemain seputar roleplay, aturan server, atau hal umum lainnya dengan ramah, santai, dan menggunakan bahasa Indonesia yang gaul tapi sopan (seperti menggunakan kata 'lo', 'gue', 'bro', 'min'). Jangan terlalu kaku.
+        systemInstruction: `Kamu adalah Metro Bot, asisten virtual untuk server SAMP Roleplay. Jawab pertanyaan pemain seputar roleplay, aturan server, atau hal umum lainnya dengan ramah, santai, dan menggunakan bahasa Indonesia yang gaul tapi sopan (seperti menggunakan kata 'lo', 'gue', 'bro', 'min'). 
+
+        ATURAN CHARACTER STORY (CS) TERBARU:
+        1. Level IC minimal 2. 
+        2. Harus 200 - 2000 kata. 
+        3. Wajib Nama Kota Dunia Nyata (Bukan GTA). 
+        4. Paragraf 1 wajib sebut Tanggal Lahir & Tempat Lahir (Contoh: Santana lahir pada 7 April 2006 di Chicago, USA).
+        5. Format: Minimal 4 paragraf, tiap paragraf min 4 kalimat, awal paragraf kasih 3 spasi.
+        6. NO PLAGIAT & NO FULL AI (Tolak + Ban).
+        7. Sudut pandang orang ketiga (Ia/Dia/Nama).
+        
 ${knowledgePrompt}
 Selalu arahkan player untuk bertanya di menu 'Ask Admin' jika pertanyaannya tidak ada di database kamu.`,
       }
@@ -194,7 +221,16 @@ export async function detectAIOrManual(text: string): Promise<{ isAI: boolean; c
     Analisis teks Character Story berikut dan tentukan apakah teks ini dibuat oleh AI atau ditulis secara manual oleh manusia.
     Berikan jawaban dalam format JSON: { "isAI": boolean, "confidence": number (0-100), "reason": "alasan singkat dalam bahasa Indonesia" }.
     
-    Ciri-ciri AI: Terlalu rapi, penggunaan kata penghubung yang repetitif, struktur paragraf yang seragam, ketiadaan emosi atau detail kecil yang tidak terduga.
+    Kriteria Penilaian Tambahan (Khas AI):
+    - Menggunakan nama kota GTA (San Andreas, Los Santos, dll) padahal dilarang.
+    - Struktur paragraf yang terlalu simetris (masing-masing tepat 4 kalimat).
+    - Tidak mencantumkan tanggal lahir/tempat lahir di awal cerita.
+    - Kurang dari 200 kata atau lebih dari 2000 kata.
+    - Penggunaan transisi yang terlalu formal (e.g., "Di sisi lain", "Selain itu") di setiap paragraf.
+    
+    Ciri-ciri Manusia: 
+    - Alur cerita yang lebih emosional dan unik.
+    - Kesalahan penulisan kecil yang manusiawi (namun tetap bisa dibaca).
     
     Teks:
     ${text}
@@ -216,13 +252,15 @@ export async function detectAIOrManual(text: string): Promise<{ isAI: boolean; c
 export async function humanizeStory(text: string): Promise<string> {
   const prompt = `
     Ubah Character Story (CS) berikut agar terlihat "Plek Ketiplek" seperti buatan manusia manual, bukan AI.
-    Ciri khas buatan manusia:
+    Ciri khas buatan manusia yang diinginkan ADMIN:
     - Tidak terlalu kaku/robotik.
-    - Penggunaan variasi kata yang lebih natural.
+    - Penggunaan variasi kata yang lebih natural (bahasa Indonesia santai tapi sopan).
     - Struktur kalimat yang tidak selalu identik di setiap paragraf.
     - Menambahkan detail kecil yang terasa lebih personal.
-    - Tetap ikuti aturan 3 spasi ditiap awal paragraf dan minimal 4 paragraf.
-    - Tetap gunakan sudut pandang orang ketiga.
+    - WAJIB: Setiap awal paragraf diawali dengan tepat 3 spasi.
+    - WAJIB: Gunakan nama kota asli dunia nyata (Chicago, New York, dll), JANGAN kota GTA.
+    - WAJIB: Pastikan paragraf pertama mencantumkan tanggal lahir dan tempat lahir.
+    - WAJIB: Tetap gunakan sudut pandang orang ketiga.
     
     Teks Asli (AI):
     ${text}
@@ -232,7 +270,7 @@ export async function humanizeStory(text: string): Promise<string> {
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt
     });
     return response.text || text;
@@ -264,7 +302,7 @@ export async function devAISuggestions(topic: string, query: string): Promise<st
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: query,
       config: { systemInstruction }
     });

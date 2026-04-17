@@ -44,5 +44,8 @@ service cloud.firestore {
     match /metro_knowledge/{knowledgeId} {
       allow read, write: if true;
     }
+    match /ai_learning/{learningId} {
+      allow read, write: if true;
+    }
   }
 }

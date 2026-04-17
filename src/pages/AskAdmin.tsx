@@ -15,12 +15,13 @@ export default function AskAdmin() {
     if (!user) return;
     const q = query(
       collection(db, 'asks'),
-      where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
-      limit(50)
+      limit(100)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setAsks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const allAsks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const myAsks = allAsks.filter((ask: any) => ask.userId === user.uid);
+      setAsks(myAsks);
     });
     return unsubscribe;
   }, [user]);

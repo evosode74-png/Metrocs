@@ -24,6 +24,8 @@
         "characterName": { "type": "string" },
         "icLevel": { "type": "number" },
         "icAge": { "type": "number" },
+        "birthDate": { "type": "string" },
+        "origin": { "type": "string" },
         "statsImageUrl": { "type": "string" },
         "tabImageUrl": { "type": "string" },
         "originalText": { "type": "string" },
@@ -33,7 +35,7 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["authorUid", "authorName", "characterName", "icLevel", "icAge", "statsImageUrl", "tabImageUrl", "originalText", "correctedText", "status", "createdAt", "updatedAt"]
+      "required": ["authorUid", "authorName", "characterName", "icLevel", "icAge", "birthDate", "origin", "statsImageUrl", "tabImageUrl", "originalText", "correctedText", "status", "createdAt", "updatedAt"]
     },
     "GlobalChat": {
       "title": "Global Chat",
@@ -95,14 +97,17 @@
       "description": "Positive/Negative examples for AI training.",
       "type": "object",
       "properties": {
+        "characterName": { "type": "string" },
         "originalText": { "type": "string" },
         "correctedText": { "type": "string" },
+        "authorUid": { "type": "string" },
         "feedback": { "type": "string" },
         "type": { "type": "string", "enum": ["positive", "negative"] },
         "category": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "approvedAt": { "type": "string", "format": "date-time" },
+        "rejectedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["type", "category"]
+      "required": ["type", "category", "originalText"]
     }
   },
   "firestore": {

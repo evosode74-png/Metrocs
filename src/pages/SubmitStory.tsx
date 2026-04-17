@@ -5,7 +5,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { correctCharacterStory } from '../services/geminiService';
 import { compressImage } from '../lib/imageUtils';
-import { Loader2, Sparkles, AlertCircle, Upload } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle, Upload, ShieldAlert } from 'lucide-react';
 
 export default function SubmitStory() {
   const { user, profile } = useAuth();
@@ -13,6 +13,8 @@ export default function SubmitStory() {
   const [characterName, setCharacterName] = useState('');
   const [icLevel, setIcLevel] = useState('');
   const [icAge, setIcAge] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [origin, setOrigin] = useState('');
   const [statsImageBase64, setStatsImageBase64] = useState('');
   const [tabImageBase64, setTabImageBase64] = useState('');
   const [storyText, setStoryText] = useState('');
@@ -36,8 +38,9 @@ export default function SubmitStory() {
     if (!user || !profile) return;
     
     // Basic validations
-    if (storyText.split(' ').length < 200) {
-      setError('Cerita harus minimal 200 kata.');
+    const wordCount = storyText.split(/\s+/).filter(w => w.length > 0).length;
+    if (wordCount < 200 || wordCount > 2000) {
+      setError('Cerita harus antara 200 - 2000 kata.');
       return;
     }
     if (parseInt(icLevel) < 2) {
@@ -62,7 +65,7 @@ export default function SubmitStory() {
 
     try {
       // 1. Correct the story using Gemini AI
-      const correctedText = await correctCharacterStory(storyText, characterName);
+      const correctedText = await correctCharacterStory(storyText, characterName, birthDate, origin);
 
       // 2. Save to Firestore
       await addDoc(collection(db, 'character_stories'), {
@@ -71,6 +74,8 @@ export default function SubmitStory() {
         characterName,
         icLevel: parseInt(icLevel),
         icAge: parseInt(icAge),
+        birthDate,
+        origin,
         statsImageUrl: statsImageBase64,
         tabImageUrl: tabImageBase64,
         originalText: storyText,
@@ -96,6 +101,30 @@ export default function SubmitStory() {
         <p className="text-gray-400">
           Tulis cerita latar belakang karaktermu. AI kami akan mengoreksi tata bahasa, ejaan, dan format sesuai aturan sebelum direview oleh admin.
         </p>
+      </div>
+
+      {/* Rules Section */}
+      <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-6 mb-8">
+        <div className="flex items-center gap-2 mb-4 text-orange-500">
+          <ShieldAlert className="w-5 h-5" />
+          <h3 className="font-bold uppercase tracking-wider">BACA ATURAN - LANGGAR = KENA MENTAL</h3>
+        </div>
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-2 text-[11px] text-gray-400">
+          <div className="space-y-1">
+            <p><span className="text-white font-bold">1. Level IC:</span> Minimal 2.</p>
+            <p><span className="text-white font-bold">2. No Plagiat:</span> Nyolong CS = Ban 2 hari.</p>
+            <p><span className="text-white font-bold">3. No Full AI:</span> Kedetek 100% AI = Tolak + Ban 1 hari.</p>
+            <p><span className="text-white font-bold">4. Bukti:</span> SS /stats + Tab (Tanggal Harus Sama).</p>
+            <p><span className="text-white font-bold">5. Nama:</span> Style USA & Tanpa garis bawah (_).</p>
+          </div>
+          <div className="space-y-1">
+            <p><span className="text-white font-bold">6. POV:</span> Wajib Orang Ketiga (Dia/Ia/Nama).</p>
+            <p><span className="text-white font-bold">7. Kota:</span> WAJIB Kota Asli Dunia Nyata (Bukan GTA).</p>
+            <p><span className="text-white font-bold">8. Lahir:</span> Wajib cantumkan Tgl Lahir + Tempat Lahir.</p>
+            <p><span className="text-white font-bold">9. Format:</span> Min 4 Paragraf, 3 Spasi di awal paragraf.</p>
+            <p><span className="text-white font-bold">10. Kata:</span> 200 - 2000 Kata (Sangat Ketat).</p>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -153,6 +182,32 @@ export default function SubmitStory() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
+              Tanggal Lahir
+            </label>
+            <input
+              type="text"
+              required
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="w-full bg-[#0a0a0a] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+              placeholder="19 Januari 1999"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Tempat Lahir (Kota Dunia Nyata)
+            </label>
+            <input
+              type="text"
+              required
+              value={origin}
+              onChange={(e) => setOrigin(e.target.value)}
+              className="w-full bg-[#0a0a0a] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+              placeholder="Chicago, USA"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Upload SS /stats
             </label>
             <label className="w-full bg-[#0a0a0a] border border-gray-700 rounded-lg px-4 py-3 text-white flex items-center justify-between cursor-pointer hover:border-orange-500 transition-colors">
@@ -184,11 +239,14 @@ export default function SubmitStory() {
             value={storyText}
             onChange={(e) => setStoryText(e.target.value)}
             className="w-full bg-[#0a0a0a] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors resize-y"
-            placeholder="   Santana Vetuper lahir pada 7 April 2006 di Chicago, USA..."
+            placeholder="   Santana Vetuper lahir pada 7 April 2006 di Chicago, USA. Ia anak pertama dari Michael Vetuper dan Clara Monroe..."
           />
-          <p className="text-xs text-gray-500 mt-2 text-right">
-            {storyText.split(' ').filter(w => w.length > 0).length} kata (min 200)
-          </p>
+          <div className="flex justify-between items-center mt-2">
+            <span className="text-[10px] text-gray-500">Gunakan nama kota asli (USA/Global), bukan kota GTA.</span>
+            <p className={`text-xs font-bold ${storyText.split(/\s+/).filter(w => w.length > 0).length < 200 ? 'text-red-500' : storyText.split(/\s+/).filter(w => w.length > 0).length > 2000 ? 'text-red-500' : 'text-green-500'}`}>
+              {storyText.split(/\s+/).filter(w => w.length > 0).length} / 2000 kata (min 200)
+            </p>
+          </div>
         </div>
 
         <div className="pt-4 border-t border-gray-800 flex justify-end">

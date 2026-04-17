@@ -183,7 +183,16 @@ export default function Login() {
                 {!idTaken ? (
                   <button type="button" onClick={generateId} className="text-[10px] text-orange-500 font-bold hover:underline">AMBIL ID</button>
                 ) : (
-                  <span className="text-lg font-mono font-bold text-orange-500 tracking-widest">{generatedSampId}</span>
+                  <div 
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={() => {
+                        const el = document.getElementById('reg-id-display');
+                        if (el) el.innerText = el.innerText === '•••••' ? generatedSampId : '•••••';
+                    }}
+                  >
+                    <span id="reg-id-display" className="text-lg font-mono font-bold text-orange-500 tracking-widest">•••••</span>
+                    <span className="text-[8px] text-gray-400 font-bold uppercase group-hover:text-white">SHOW</span>
+                  </div>
                 )}
               </div>
               {idTaken && (

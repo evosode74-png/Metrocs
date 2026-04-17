@@ -6,6 +6,7 @@ export default function GenerateStory() {
   const [details, setDetails] = useState<CharacterDetails>({
     name: '',
     age: '',
+    birthDate: '',
     origin: '',
     personality: '',
     background: '',
@@ -80,12 +81,26 @@ export default function GenerateStory() {
                   <User className="w-4 h-4 text-orange-500" /> Umur
                 </label>
                 <input
-                  required
+                   required
                   type="text"
                   name="age"
                   value={details.age}
                   onChange={handleChange}
                   placeholder="Contoh: 25 Tahun"
+                  className="w-full bg-[#0a0a0a] border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <User className="w-4 h-4 text-orange-500" /> Tanggal Lahir
+                </label>
+                <input
+                  required
+                  type="text"
+                  name="birthDate"
+                  value={details.birthDate}
+                  onChange={handleChange}
+                  placeholder="Contoh: 7 April 2006"
                   className="w-full bg-[#0a0a0a] border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm"
                 />
               </div>

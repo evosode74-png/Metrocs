@@ -81,7 +81,7 @@ export default function GlobalChat() {
         {messages.map((msg) => {
           const isMe = msg.uid === user?.uid;
           return (
-            <div key={msg.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+            <div key={msg.id} className={`flex gap-3 group ${isMe ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
               <div className="shrink-0">
                 {msg.photoURL ? (
                   <img src={msg.photoURL} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
@@ -101,8 +101,11 @@ export default function GlobalChat() {
                     {msg.createdAt?.toDate ? format(msg.createdAt.toDate(), 'HH:mm') : ''}
                   </span>
                   {(isMe || profile?.role === 'admin') && (
-                    <button onClick={() => handleDelete(msg.id)} className="text-gray-600 hover:text-red-500 transition-colors">
-                      <Trash2 className="w-3 h-3" />
+                    <button 
+                      onClick={() => handleDelete(msg.id)} 
+                      className="text-gray-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
